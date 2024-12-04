@@ -1,0 +1,42 @@
+# Bytecode files
+__pycache__
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+*.egg-info/
+
+# Distribution and packaging
+*.tar.gz
+*.egg
+*.whl
+dist/
+build/
+*.log
+
+# IDE and editor configurations
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python tests
+test/
+tests/
+*.test.py
+
+# Docker-related files (optional, avoid if needed)
+Dockerfile
+.dockerignore
+
+# Local config files (optional, if sensitive information is in them)
+config/
+.env
