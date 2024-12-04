@@ -34,7 +34,8 @@ jobs:
       - name: Checkout Repo 1 (Kubernetes Manifests Repo)
         uses: actions/checkout@v3
         with:
-          repository: mkreddi17/k8s-manifestfiles  # Replace wth the owner/repo name of Repo 1
+          repository: mkreddi17/k8s-manifestfiles
+          ref: main  # Replace wth the owner/repo name of Repo 1
           token: ${{ secrets.REPO_ACCESS_TOKEN }}  # Use a GitHub token for access
 
       - name: Update Image Tag in deployment.yaml
