@@ -24,3 +24,27 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/backend:latest
             ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.run_number }}
+
+# Update Image Tag in Kubernetes Manifests Job
+  update-image:
+    runs-on: ubuntu-latest
+    needs: build  # This ensures this job runs only after the 'build' job succeeds
+
+    steps:
+      - name: Checkout Repo 1 (Kubernetes Manifests Repo)
+        uses: actions/checkout@v3
+        with:
+          repository: mkreddi17/k8s-manifestfiles  # Replace wth the owner/repo name of Repo 1
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}  # Use a GitHub token for access
+
+      - name: Update Image Tag in deployment.yaml
+        run: |
+          sed -i "s|mkreddi17/backend:[^ ]*|${{ secrets.DOCKER_USERNAME }}/backend:${{ github.run_number }}|" backend/deployment.yaml
+
+      - name: Commit and Push changes to Repo 1
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add deployment.yaml
+          git commit -m "Update image tag to ${{ github.run_number }}"
+          git push
