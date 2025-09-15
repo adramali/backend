@@ -40,7 +40,7 @@ jobs:
 
       - name: Update Image Tag in deployment.yaml
         run: |
-          sed -i "s|mkreddi17/backend:[^ ]*|${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.run_number }}|" backend/deployment.yaml
+          sed -i "s|adramalli/backend:[^ ]*|${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.run_number }}|" backend/deployment.yaml
 
       - name: Commit and Push changes to Repo 1
         run: |
