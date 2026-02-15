@@ -1,34 +1,46 @@
 from flask import Flask, request, jsonify
 from flask_mysqldb import MySQL
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
-import os  # Import os module here
-from flask_cors import CORS  # Import CORS
+import os
+from flask_cors import CORS
+import traceback
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
-# Enable CORS for all domains
-CORS(app)  # This allows all origins to access your API
-
-# Alternatively, you can specify specific origins:
-# CORS(app, resources={r"/signup": {"origins": "http://localhost:3000"}})
-
-# Fetch database credentials from environment variables
+# DB config - ensure these env vars are set in your environment/.env
 app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
+# return rows as dicts (easier to work with)
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
-# Initialize MySQL connection
 mysql = MySQL(app)
+
+# health check that also attempts a trivial DB query
+@app.route('/health', methods=['GET'])
+def health():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute('SELECT 1 AS ok')
+        cur.fetchone()
+        cur.close()
+        return jsonify({"status": "ok"}), 200
+    except Exception:
+        # print full traceback to server logs
+        print('DB health check failed:')
+        traceback.print_exc()
+        return jsonify({"status": "db-error"}), 500
 
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json()
-    print("Received data:", data)  # Log received data for debugging
+    print("Received data:", data)
 
     full_name = data.get('full_name')
     email = data.get('email')
@@ -37,45 +49,78 @@ def signup():
     password = data.get('password')
     confirmPassword = data.get('confirmPassword')
 
-    # Validate input
     if not full_name or not email or not password or not confirmPassword:
         return jsonify({"message": "All fields are required!"}), 400
 
     if password != confirmPassword:
         return jsonify({"message": "Passwords do not match!"}), 400
 
-    # Hash the password
     hashed_password = generate_password_hash(password)
 
-    # Create cursor
-    cursor = mysql.connection.cursor()
-
+    cur = mysql.connection.cursor()
     try:
-        # Check if email already exists
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-        existing_user = cursor.fetchone()
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        existing_user = cur.fetchone()
 
         if existing_user:
             return jsonify({"message": "Email already exists!"}), 400
 
-        # Insert new user into the database
-        cursor.execute(
+        cur.execute(
             "INSERT INTO users (full_name, email, phone_number, dob, password) VALUES (%s, %s, %s, %s, %s)",
             (full_name, email, phone_number, dob, hashed_password)
         )
-
-        # Commit changes
         mysql.connection.commit()
-
-        # Close cursor
-        cursor.close()
-
         return jsonify({"message": "Signup successful!"}), 201
 
-    except Exception as e:
-        print("Error:", e)  # Log the full error message for debugging
-        mysql.connection.rollback()  # Rollback in case of error
+    except Exception:
+        print("Signup error:")
+        traceback.print_exc()
+        mysql.connection.rollback()
         return jsonify({"message": "An error occurred. Please try again later."}), 500
 
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({"message": "Email and password required"}), 400
+
+    cur = mysql.connection.cursor()
+    try:
+        cur.execute("SELECT id, password FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        if not user:
+            return jsonify({"message": "Invalid credentials"}), 401
+
+        stored_hash = user.get('password') if isinstance(user, dict) else user[1]
+        if not check_password_hash(stored_hash, password):
+            return jsonify({"message": "Invalid credentials"}), 401
+
+        return jsonify({"message": "Login successful", "user_id": user.get('id') if isinstance(user, dict) else user[0]}), 200
+
+    except Exception:
+        print("Login error:")
+        traceback.print_exc()
+        return jsonify({"message": "An error occurred. Please try again later."}), 500
+
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+
 if __name__ == '__main__':
+    # simple startup check of env vars
+    required = ['MYSQL_HOST', 'MYSQL_USER', 'MYSQL_PASSWORD', 'MYSQL_DB']
+    missing = [k for k in required if not os.getenv(k)]
+    if missing:
+        print("Missing env vars:", missing)
     app.run(debug=True)
