@@ -12,13 +12,24 @@ load_dotenv()
 app = Flask(__name__)
 
 # Restrict CORS to expected frontend origins (comma-separated env var supported).
+cors_origins_env = os.getenv(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:3000,http://127.0.0.1:3000'
+)
+if cors_origins_env.strip() == '*':
+    cors_origins = '*'
+    supports_credentials = False
+else:
+    cors_origins = [o.strip() for o in cors_origins_env.split(',') if o.strip()]
+    supports_credentials = True
+
 CORS(
     app,
     resources={r"/*": {
         "origins": cors_origins,
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "supports_credentials": supports_credentials
     }}
 )
 
