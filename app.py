@@ -10,7 +10,11 @@ import traceback
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+
+# Restrict CORS to expected frontend origins (comma-separated env var supported).
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000')
+cors_origins = [o.strip() for o in cors_origins_env.split(',') if o.strip()]
+CORS(app, resources={r"/*": {"origins": cors_origins}})
 
 # DB config - ensure these env vars are set in your environment/.env
 app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
@@ -41,6 +45,9 @@ def health():
 def signup():
     data = request.get_json()
     print("Received data:", data)
+
+    if not data:
+        return jsonify({"message": "Invalid JSON body"}), 400
 
     full_name = data.get('full_name')
     email = data.get('email')
@@ -87,6 +94,9 @@ def signup():
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
+    if not data:
+        return jsonify({"message": "Invalid JSON body"}), 400
+
     email = data.get('email')
     password = data.get('password')
 
@@ -123,4 +133,6 @@ if __name__ == '__main__':
     missing = [k for k in required if not os.getenv(k)]
     if missing:
         print("Missing env vars:", missing)
-    app.run(debug=True)
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', '5000'))
+    app.run(debug=True, host=host, port=port)
