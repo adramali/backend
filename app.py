@@ -12,6 +12,8 @@ load_dotenv()
 app = Flask(__name__)
 
 # Restrict CORS to expected frontend origins (comma-separated env var supported).
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000', '*')
+cors_origins = [o.strip() for o in cors_origins_env.split(',') if o.strip()]
 CORS(
     app,
     resources={r"/*": {
