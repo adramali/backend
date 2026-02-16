@@ -1,24 +1,17 @@
-# Use the official Python 3.11 image from Docker Hub
 FROM python:3.11-slim
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y \
-    default-libmysqlclient-dev \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the code into the container
+# Copy only requirements first (better caching)
+COPY requirements.txt .
+
+# Upgrade pip & install deps
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy app code
 COPY . .
 
-# Install the dependencies specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose the port the app will run on (adjust as needed)
 EXPOSE 5000
 
-# Define the default command to run your Python application
 CMD ["python", "app.py"]
